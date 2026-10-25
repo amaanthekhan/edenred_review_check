@@ -120,6 +120,39 @@ ul{padding-left:20px;margin:8px 0} li{margin:5px 0}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .msg{background:#1f3a2c;color:#d6f1e1}}
 :root[data-theme="dark"] .msg{background:#1f3a2c;color:#d6f1e1}
 
+/* confidence labels, controls, hero, journey */
+.tag.ws{color:var(--ok);border-color:var(--ok)} .tag.dir{color:var(--warn);border-color:var(--warn)} .tag.hyp{color:var(--muted);border-color:var(--muted);border-style:dashed}
+.tagline{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13px;color:var(--muted)}
+.ctlrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 12px}
+.ctlrow .seg{margin:0}
+.ctllab{font-size:13px;font-weight:600;color:var(--ink)}
+.ctlhelp{font-size:12.5px;color:var(--muted);flex-basis:100%}
+.conf .row{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);align-items:start}
+.conf .row:last-child{border-bottom:0}
+@media(max-width:560px){.conf .row{grid-template-columns:1fr;gap:4px}}
+.question{font-size:19px;line-height:1.5;margin:26px 0 0;max-width:780px}
+.cta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px;margin-top:22px}
+.cta a{display:flex;gap:14px;align-items:flex-start;text-decoration:none;color:var(--ink);transition:border-color .15s}
+.cta a:hover{border-color:var(--brand)}
+.cta svg{flex:0 0 28px;width:28px;height:28px;stroke:var(--brand);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.cta b{display:block;font-size:18px} .cta span{color:var(--muted);font-size:14px}
+.journey{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:720px){.journey{grid-template-columns:1fr}}
+.jstep{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--ink);font:inherit;cursor:pointer}
+.jstep:hover{border-color:var(--brand)}
+.jstep[aria-pressed="true"]{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand);background:var(--card)}
+.jstep strong{display:block}
+.jstep small{display:block;color:var(--muted);font-size:13.5px;margin-top:2px}
+.jstep.bad .dot{background:var(--accent)} .jstep.good .dot{background:var(--ok)}
+.jarrow{text-align:center;color:var(--muted);font-size:14px;line-height:1;margin:5px 0}
+.jpanel{margin-top:14px;border-left:4px solid var(--brand)}
+.jpanel h3{font-size:20px}
+.jpanel dl{display:grid;grid-template-columns:170px 1fr;gap:10px 16px;margin:12px 0 0}
+.jpanel dt{font-weight:600;color:var(--muted);font-size:14px} .jpanel dd{margin:0}
+@media(max-width:560px){.jpanel dl{grid-template-columns:1fr;gap:2px}.jpanel dd{margin-bottom:8px}}
+summary small{display:block;font-weight:400;color:var(--muted);font-size:13.5px}
+.gloss dt{font-weight:600;margin-top:10px} .gloss dd{margin:2px 0 0;color:var(--muted)}
+.nextexp{margin-top:18px;border-color:var(--brand)}
 footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:40px}
 .err{border-color:var(--accent)}
 @media print{.topbar,.actions,.pager,.crumb{display:none} body{background:#fff}}
@@ -168,7 +201,26 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
   function ul(items){var u=el("ul"); items.forEach(function(t){var li=el("li"); if(Array.isArray(t)){add(li,el("strong",null,t[0]),document.createTextNode(" "+t[1]));} else li.textContent=t; u.appendChild(li);}); return u;}
   function stat(label,value,detail){var c=el("div","card stat"); add(c,el("div","v",value),el("div","l",label)); if(detail) c.appendChild(el("div","d",detail)); return c;}
   function destroyCharts(){Object.keys(charts).forEach(function(k){charts[k].destroy();}); charts={};}
-  function mk(id,cfg){ if(charts[id]) charts[id].destroy(); charts[id]=new Chart(document.getElementById(id),cfg); }
+  var LBL={}, MARK={};
+  function mk(id,cfg){ LBL[id]=cfg.lbl||null; MARK[id]=cfg.marks||null; delete cfg.lbl; delete cfg.marks;
+    if(MARK[id]){cfg.options=cfg.options||{}; cfg.options.layout={padding:{top:22}};}
+    if(charts[id]) charts[id].destroy(); charts[id]=new Chart(document.getElementById(id),cfg); }
+  /* direct value labels at bar ends, and dashed vertical markers on line charts */
+  var valueLabels={id:"valueLabels",afterDatasetsDraw:function(chart){
+    var o=LBL[chart.canvas.id]; if(!o) return; if(o.minWidth&&chart.width<o.minWidth) return;
+    var ctx=chart.ctx, horiz=chart.options.indexAxis==="y"; ctx.save(); ctx.font=(o.size||12)+"px system-ui,sans-serif"; ctx.fillStyle=css("--ink");
+    chart.data.datasets.forEach(function(ds,di){var meta=chart.getDatasetMeta(di); if(meta.hidden) return;
+      meta.data.forEach(function(bar,i){var v=ds.data[i]; if(v==null) return; var t=o.format?o.format(v,di,i):String(v);
+        if(horiz){ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillText(t,bar.x+6,bar.y);}
+        else{ctx.textAlign="center";ctx.textBaseline="bottom";ctx.fillText(t,bar.x,bar.y-4);}});});
+    ctx.restore();}};
+  var vMarkers={id:"vMarkers",afterDraw:function(chart){
+    var ms=MARK[chart.canvas.id]; if(!ms) return; var x=chart.scales.x, a=chart.chartArea, ctx=chart.ctx;
+    ms.forEach(function(m){var idx=chart.data.labels.indexOf(m.at); if(idx<0) return; var px=x.getPixelForValue(idx);
+      ctx.save(); ctx.strokeStyle=css("--muted"); ctx.setLineDash([4,4]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(px,a.top); ctx.lineTo(px,a.bottom); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=css("--ink"); ctx.font="12px system-ui,sans-serif"; ctx.textBaseline="bottom"; var w=ctx.measureText(m.text).width, tx=px+6; ctx.textAlign="left";
+      if(tx+w>a.right){ctx.textAlign="right"; tx=px-6;} ctx.fillText(m.text,tx,a.top-4); ctx.restore();});}};
+  if(window.Chart) Chart.register(valueLabels,vMarkers);
   function zTest(p1,n1,p2,n2){
     if(!n1||!n2) return null;
     var p=(p1*n1+p2*n2)/(n1+n2), se=Math.sqrt(p*(1-p)*(1/n1+1/n2));
@@ -195,15 +247,31 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
     var box=el("div","chartbox"); if(height) box.style.height=height+"px";
     var cv=el("canvas"); cv.id=id; cv.setAttribute("role","img"); cv.setAttribute("aria-label",label); box.appendChild(cv); c.appendChild(box); return c;
   }
-  function windowControl(onChange){
-    var seg=el("div","seg"); seg.setAttribute("role","group"); seg.setAttribute("aria-label","Time window");
+  var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function fmtDate(iso){var d=new Date(iso+"T00:00:00Z"); return d.getUTCDate()+" "+MON[d.getUTCMonth()]+" "+d.getUTCFullYear();}
+  function rangeText(){
+    var from=D.meta.from; if(windowMonths<12){var t=new Date(cutoff(windowMonths)+"T00:00:00Z"); t.setUTCDate(t.getUTCDate()+1); from=t.toISOString().slice(0,10);}
+    return fmtDate(from)+" to "+fmtDate(D.meta.to);
+  }
+  function windowControl(onChange,affects){
+    var row=el("div","ctlrow"), lab=el("span","ctllab","Review window"), id="w"+Math.random().toString(36).slice(2,8); lab.id=id;
+    var seg=el("div","seg"); seg.setAttribute("role","group"); seg.setAttribute("aria-labelledby",id);
+    var help=el("span","ctlhelp");
+    function upd(){help.textContent="Showing reviews from "+rangeText()+". This changes "+affects+" only.";}
     [[3,"Last 3 months"],[6,"Last 6 months"],[12,"All 12 months"]].forEach(function(o){
       var b=el("button",null,o[1]); b.type="button"; b.setAttribute("aria-pressed",windowMonths===o[0]?"true":"false");
-      b.onclick=function(){windowMonths=o[0]; Array.prototype.forEach.call(seg.children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false");}); onChange();};
+      b.onclick=function(){windowMonths=o[0]; Array.prototype.forEach.call(seg.children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false");}); upd(); onChange();};
       seg.appendChild(b);
     });
-    return seg;
+    add(row,lab,seg,help); upd(); return row;
   }
+  /* confidence labels */
+  var CONF={ws:["Well supported","The result is directly measurable in the collected sample and the definition is reasonably reliable."],
+    dir:["Directional","The data suggests a pattern, but sampling, classification or small counts limit the conclusion."],
+    hyp:["Unverified hypothesis","The idea needs internal transaction data, more research or direct validation with Edenred."]};
+  function confTag(k){var t=el("span","tag "+k,CONF[k][0]); t.title=CONF[k][1]; return t;}
+  function tagLine(k,note){var d=el("div","tagline"); add(d,confTag(k),note?el("span",null,note):null); return d;}
+  function confLegend(){var d=el("div","conf"); ["ws","dir","hyp"].forEach(function(k){var r=el("div","row"); add(r,add(el("div"),confTag(k)),el("div",null,CONF[k][1])); d.appendChild(r);}); return d;}
   function chartDefaults(){Chart.defaults.color=css("--muted"); Chart.defaults.borderColor=css("--line"); Chart.defaults.font.family="system-ui,sans-serif";}
   function negCount(){return D.reply_audit.negative_reviews;}
 
@@ -217,27 +285,31 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
   /* ---------- OVERVIEW ---------- */
   function renderHome(){
     var m=D.meta, ra=D.reply_audit, replied=Math.round(ra.reply_rate*ra.negative_reviews);
-    var head=pageHead("Independent product discovery · C3Pay · UAE · Oct 2025 to Oct 2026","When a transaction goes wrong, customers need a clearer answer",
-      "An analysis of public C3Pay app reviews to find customer pain points, examine support communication, and propose a small, testable product improvement.");
+    var head=pageHead("Independent product discovery · C3Pay · UAE · Oct 2025 to Oct 2026","When a transaction fails, uncertainty becomes part of the experience",
+      "An investigation into public C3Pay reviews, customer-support communication, and a testable proposal for clearer transaction-status updates.");
     var stats=el("div","grid stats"); stats.style.marginTop="26px";
     add(stats,
-      stat("Reviews analysed",m.n.toLocaleString(),"English, Google Play UAE, "+m.from+" to "+m.to),
+      stat("Reviews analysed",m.n.toLocaleString(),"English, Google Play UAE, "+fmtDate(m.from)+" to "+fmtDate(m.to)),
       stat("Rated 1 or 2 stars",pct(ra.negative_reviews/m.n),ra.negative_reviews.toLocaleString()+" of "+m.n.toLocaleString()+" reviews"),
       stat("Negative reviews with a public reply",pct(ra.reply_rate),replied.toLocaleString()+" of "+ra.negative_reviews.toLocaleString()+" negative reviews"));
-    var tk=el("div","takeaway"); add(tk,el("div","eyebrow","The key takeaway"),
-      el("p","big","Public reviews point to two different problems. Many people can't get into the app, and some who lose money in a failed transaction describe being left without a status. The proposed next step is a small test: proactive status messages for failed transactions, which also reach people when the app won't open."));
-    var act=el("div","actions"); add(act,link("#/findings","Explore the findings","btn"),link("#/proposal","View the proposal","btn ghost"));
-    var note=el("p","note","Reviews show what people choose to complain about, not how often things fail. Every figure keeps its denominator and sample limits in the detail pages.");
-    add(view,head,stats,tk,act,note);
+    var q=el("p","question"); add(q,el("strong",null,"The question: "),document.createTextNode("could clearer, event-verified status updates reduce uncertainty and repeat support contacts after a failed transaction?"));
+    var tk=el("div","takeaway"); add(tk,el("div","eyebrow","What the reviews suggest so far"),
+      el("p","big","Two different problems. Many people can't get into the app at all, and some who lose money in a failed transaction describe being left without a status or a reply. The second is smaller, but it is where the stakes are highest, and it can be tested cheaply."));
+    var cta=el("div","cta");
+    var a1=link("#/findings","","card"); a1.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18"/><path d="M6 17v-4"/><path d="M11 17V8"/><path d="M16 17v-6"/><path d="M21 17V5"/></svg><div><b>Explore the evidence</b><span>Five findings, each with its chart, limits and next question.</span></div>';
+    var a2=link("#/proposal","","card"); a2.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></svg><div><b>See the proposal</b><span>A clickable before-and-after journey, and the experiment that would test it.</span></div>';
+    add(cta,a1,a2);
+    var note=el("p","note","Reviews show what people choose to complain about, not how often things fail, and the review sample does not represent all C3Pay users.");
+    add(view,head,stats,q,tk,cta,note);
   }
 
   /* ---------- FINDINGS HUB ---------- */
   var FINDINGS=[
-    {n:1,cat:"Customer experience",title:"App access is the largest complaint theme",tag:["medium","Observed in sample"]},
-    {n:2,cat:"Customer support",title:"Public replies are fast, but mostly redirect to a private channel",tag:["high","Observed; resolution unknown"]},
-    {n:3,cat:"High-stakes problem",title:"Money problems are a smaller share, with the highest stakes",tag:["medium","Smaller share, high stakes"]},
-    {n:4,cat:"Patterns over time",title:"Version 13 reviewers are far more negative than version 12 reviewers",tag:["medium","Association, not proof of cause"]},
-    {n:5,cat:"Data quality",title:"How far can the automated tags be trusted?",tag:["medium","Mixed on a fresh sample"]}
+    {n:1,cat:"Customer experience",title:"App access is the largest complaint theme",conf:"dir",note:"Hand-read sample of 159; reviews are not a random sample of users"},
+    {n:2,cat:"Customer support",title:"Public replies are fast, but mostly redirect to a private channel",conf:"ws",note:"Measured on all 1,556 negative reviews; resolution not visible"},
+    {n:3,cat:"High-stakes problem",title:"Money problems are a smaller share, with the highest stakes",conf:"dir",note:"Small counts; severity is an argument, not a measurement"},
+    {n:4,cat:"Patterns over time",title:"Version 13 reviewers are far more negative than version 12 reviewers",conf:"dir",note:"Association, not proof of cause"},
+    {n:5,cat:"Data quality",title:"How far can the automated tags be trusted?",conf:"dir",note:"Mixed results on 100 fresh reviews; one labeller"}
   ];
   function figFor(n){
     var th={}; D.themes.forEach(function(t){th[t.theme]=t;});
@@ -249,15 +321,18 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
     return [pct(D.holdout.overall.precision,0)+" / "+pct(D.holdout.overall.recall,0),"precision and recall of the automatic tags on "+D.holdout.n+" fresh hand-labelled reviews."];
   }
   function renderFindings(){
-    add(view,pageHead("Findings","Five findings, from most common to most uncertain","Each card gives one takeaway, one figure and how far to trust it. Open a finding for the chart, what it means and what it doesn't prove."));
+    add(view,pageHead("Findings","Five findings, from most common to most uncertain","Each card gives one takeaway, one figure and a confidence label (defined below the cards). Open a finding for the chart, what it means and what it doesn't prove."));
     var g=el("div","grid two"); g.style.marginTop="22px";
     FINDINGS.forEach(function(f){
       var a=link("#/findings/"+f.n,"","card fcard"), fg=figFor(f.n);
       add(a,el("div","cat","Finding 0"+f.n+" · "+f.cat),el("h3",null,f.title),el("div","fig",fg[0]),el("div","cap",fg[1]),
-        add(el("div"),el("span","tag "+f.tag[0],f.tag[1])),el("div","go","Explore finding →"));
+        tagLine(f.conf,f.note),el("div","go","Explore finding →"));
       g.appendChild(a);
     });
     add(view,g);
+    var lg=el("div","card"); lg.style.marginTop="18px";
+    add(lg,el("h3",null,"How to read the labels"),confLegend(),el("p","note","A label describes how far the evidence goes, not how large a number is. A small, directly observed count can be accurate for the sample and still say little about all C3Pay users."));
+    view.appendChild(lg);
   }
 
   /* ---------- FINDING DETAIL scaffold ---------- */
@@ -265,7 +340,7 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
     var f=FINDINGS[n-1];
     add(view,link("#/findings","← Back to all findings","crumb"));
     var h=pageHead("Finding 0"+n+" · "+f.cat,f.title); h.style.paddingTop="12px";
-    var t=el("div"); t.style.margin="6px 0 0"; t.appendChild(el("span","tag "+f.tag[0],f.tag[1])); h.appendChild(t); view.appendChild(h);
+    var t=el("div"); t.style.margin="6px 0 0"; t.appendChild(tagLine(f.conf,f.note)); h.appendChild(t); view.appendChild(h);
     function sec(lab,content){var b=el("div","block"); b.appendChild(el("div","lab",lab)); if(typeof content==="string") b.appendChild(el("p",lab==="The finding"?"lead":null,content)); else b.appendChild(content); view.appendChild(b); return b;}
     sec("The finding",o.finding);
     var ev=el("div"); view.appendChild(add(el("div","block"),el("div","lab","The evidence"),ev));
@@ -286,10 +361,11 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
   }
   function drawThemes(){
     chartDefaults(); var r=themeRows(), th=r.th;
-    mk("cThemes",{type:"bar",data:{labels:th.map(function(t){return t.name;}),
+    mk("cThemes",{lbl:{format:function(v){return themeShare?v+"%":String(v);}},type:"bar",data:{labels:th.map(function(t){return t.name;}),
       datasets:[{data:th.map(function(t){return themeShare? +(t.s*100).toFixed(1): t.c;}),backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:22}]},
-      options:{indexAxis:"y",maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var t=th[c.dataIndex];return t.c+" negative reviews ("+(t.s*100).toFixed(1)+"%)";}}}},
+      options:{indexAxis:"y",maintainAspectRatio:false,layout:{padding:{right:52}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var t=th[c.dataIndex];return t.c+" negative reviews ("+(t.s*100).toFixed(1)+"%)";}}}},
         scales:{x:{title:{display:true,text:themeShare?"% of negative reviews":"negative reviews"}}}}});
+    var tt=document.getElementById("themetitle"); if(tt) tt.textContent="Automatic tags give a similar ranking ("+winLabel().toLowerCase()+")";
     var n=document.getElementById("themenote");
     if(n) n.textContent="Window: "+winLabel()+", "+r.neg.toLocaleString()+" negative reviews. A review can carry several tags. Across the full year, "+pct(D.meta.neg_unmatched_share,0)+" of negatives match no theme at all, so these shares understate the picture.";
   }
@@ -307,12 +383,12 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
         ev.appendChild(hc);
         ev.appendChild(el("p","note","A review can carry several labels. The first 59 were labelled with the automatic tags visible; the other 100 were labelled blind."));
         var tc=el("h3",null,"The same question, by automatic tags, over time"); tc.style.margin="22px 0 8px"; ev.appendChild(tc);
-        add(ev,windowControl(drawThemes));
+        add(ev,windowControl(drawThemes,"the automatic-tag chart below"));
         var card=chartCard("cThemes","Automatic tags give a similar ranking","Share of 1 and 2 star reviews carrying each keyword tag. Tag accuracy is limited; see finding 05.","Horizontal bar chart of themes in negative reviews",340);
-        var seg=el("div","seg"); seg.setAttribute("role","group"); seg.setAttribute("aria-label","Theme metric");
-        [["Share of negatives",true],["Count",false]].forEach(function(o){var b=el("button",null,o[0]); b.type="button"; b.setAttribute("aria-pressed",themeShare===o[1]?"true":"false");
+        var seg=el("div","seg"); seg.setAttribute("role","group"); seg.setAttribute("aria-label","Display as");
+        [["Share of negative reviews",true],["Number of reviews",false]].forEach(function(o){var b=el("button",null,o[0]); b.type="button"; b.setAttribute("aria-pressed",themeShare===o[1]?"true":"false");
           b.onclick=function(){themeShare=o[1]; Array.prototype.forEach.call(seg.children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false");}); drawThemes();}; seg.appendChild(b);});
-        card.insertBefore(seg,card.children[2]);
+        var crow=el("div","ctlrow"); add(crow,el("span","ctllab","Display as"),seg); card.insertBefore(crow,card.children[2]); card.querySelector("h3").id="themetitle";
         var nn=el("p","note"); nn.id="themenote"; card.appendChild(nn);
         add(ev,card);
         var c2=chartCard("cAppTrend","The app-access share of negatives, by month","App-access-tagged negatives as a % of all negative reviews that month","Line chart of app access share of negative reviews by month",240); c2.style.marginTop="14px"; ev.appendChild(c2);
@@ -329,12 +405,12 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
   function drawHand(){
     chartDefaults(); var hl=D.hand_labelled;
     var th=Object.keys(hl.counts).map(function(k){return {name:k,c:hl.counts[k]};}).filter(function(t){return t.c>=5;}).sort(function(a,b){return b.c-a.c;});
-    mk("cHand",{type:"bar",data:{labels:th.map(function(t){return t.name;}),datasets:[{data:th.map(function(t){return +(t.c/hl.n*100).toFixed(1);}),backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:22}]},
-      options:{indexAxis:"y",maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var t=th[c.dataIndex];return t.c+" of "+hl.n+" reviews ("+(t.c/hl.n*100).toFixed(1)+"%)";}}}},scales:{x:{title:{display:true,text:"% of hand-read negative reviews"}}}}});
+    mk("cHand",{lbl:{format:function(v){return v+"%";}},type:"bar",data:{labels:th.map(function(t){return t.name;}),datasets:[{data:th.map(function(t){return +(t.c/hl.n*100).toFixed(1);}),backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:22}]},
+      options:{indexAxis:"y",maintainAspectRatio:false,layout:{padding:{right:52}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var t=th[c.dataIndex];return t.c+" of "+hl.n+" reviews ("+(t.c/hl.n*100).toFixed(1)+"%)";}}}},scales:{x:{title:{display:true,text:"% of hand-read negative reviews"}}}}});
   }
   function drawAppTrend(){
     chartDefaults(); var mt=monthlyThemeShare("App won't open / login / slow / errors");
-    mk("cAppTrend",{type:"line",data:{labels:mt.map(function(x){return x.m;}),datasets:[{data:mt.map(function(x){return x.neg?+(x.c/x.neg*100).toFixed(1):null;}),borderColor:css("--s1"),backgroundColor:css("--s1"),borderWidth:2,pointRadius:4,pointBorderColor:css("--card"),pointBorderWidth:2,tension:.2}]},
+    mk("cAppTrend",{marks:[{at:"2026-05",text:"v13 first seen"}],type:"line",data:{labels:mt.map(function(x){return x.m;}),datasets:[{data:mt.map(function(x){return x.neg?+(x.c/x.neg*100).toFixed(1):null;}),borderColor:css("--s1"),backgroundColor:css("--s1"),borderWidth:2,pointRadius:4,pointBorderColor:css("--card"),pointBorderWidth:2,tension:.2}]},
       options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var x=mt[c.dataIndex];return c.parsed.y+"% ("+x.c+" of "+x.neg+" negatives)";}}}},scales:{y:{min:0,title:{display:true,text:"% of negative reviews"}}}}});
   }
 
@@ -356,8 +432,8 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
       limits:"Public replies cannot show whether the underlying case was ever resolved. A template is not a failure on its own, because many complaints are the same (for example, a lost PIN). I read replies as text only, so I can't judge their tone or helpfulness at scale.",
       next:"For users redirected to WhatsApp or phone, what share get a resolution in one contact, and how long does a failed-after-debit case take to close?",
       after:function(){chartDefaults();
-        mk("cReply",{type:"bar",data:{labels:["Negative reviews","With a public reply","Reply uses the top template"],datasets:[{data:[ra.negative_reviews,replied,tmpl],backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:30}]},
-          options:{indexAxis:"y",maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:"reviews"}}}}});}
+        mk("cReply",{lbl:{format:function(v){return v.toLocaleString();}},type:"bar",data:{labels:["Negative reviews","With a public reply","Reply uses the top template"],datasets:[{data:[ra.negative_reviews,replied,tmpl],backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:30}]},
+          options:{indexAxis:"y",maintainAspectRatio:false,layout:{padding:{right:52}},plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:"reviews"}}}}});}
     });
   }
 
@@ -382,8 +458,8 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
       limits:"I can't see how often transfers or ATM withdrawals actually fail, only how often people write about it. The "+u+" comes from my own reading, so a different reader might draw the categories differently, and a sample of "+hl.n+" leaves a wide range. The \"3 of 6\" figure rests on six reviews. The quotes are paraphrased from public reviews, one of them from the App Store, and they are illustrations, not data.",
       next:"What share of transactions fail after debit, what is the median time to reversal, and what share of those cases generate more than one contact?",
       after:function(){chartDefaults();
-        mk("cMoney",{type:"bar",data:{labels:["Delayed or missing transfer","Deducted, failed or ATM dispute","Either"],datasets:[{data:[tc,fc,u],backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:30}]},
-          options:{indexAxis:"y",maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.parsed.x+" of "+hl.n+" reviews";}}}},scales:{x:{title:{display:true,text:"hand-read negative reviews"}}}}});}
+        mk("cMoney",{lbl:{},type:"bar",data:{labels:["Delayed or missing transfer","Deducted, failed or ATM dispute","Either"],datasets:[{data:[tc,fc,u],backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:30}]},
+          options:{indexAxis:"y",maintainAspectRatio:false,layout:{padding:{right:52}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.parsed.x+" of "+hl.n+" reviews";}}}},scales:{x:{title:{display:true,text:"hand-read negative reviews"}}}}});}
     });
   }
 
@@ -396,13 +472,13 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
     function cnt(f){return months.map(function(mo){var r=by[mo]&&by[mo][f]; return r?r.n:0;});}
     var n12=cnt("v12"), n13=cnt("v13");
     function ds(label,data,col){return {label:label,data:data,borderColor:col,backgroundColor:col,borderWidth:2,pointRadius:4,pointBorderColor:css("--card"),pointBorderWidth:2,tension:.2};}
-    mk("cFam",{type:"line",data:{labels:months,datasets:[ds("v12",ser("v12"),s1),ds("v13",ser("v13"),s2)]},
+    mk("cFam",{marks:[{at:"2026-05",text:"v13 first seen"}],type:"line",data:{labels:months,datasets:[ds("v12",ser("v12"),s1),ds("v13",ser("v13"),s2)]},
       options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var n=(c.datasetIndex?n13:n12)[c.dataIndex];return c.dataset.label+": "+c.parsed.y+"% negative (n="+n+")";}}}},scales:{y:{min:0,title:{display:true,text:"% 1 or 2 star"}}}}});
     var mo=D.by_month.filter(function(r){return r.month>="2025-11";});
-    mk("cMonth",{type:"line",data:{labels:mo.map(function(r){return r.month;}),datasets:[ds("All reviews",mo.map(function(r){return +(r.neg_share*100).toFixed(1);}),acc)]},
+    mk("cMonth",{marks:[{at:"2026-05",text:"v13 first seen"}],type:"line",data:{labels:mo.map(function(r){return r.month;}),datasets:[ds("All reviews",mo.map(function(r){return +(r.neg_share*100).toFixed(1);}),acc)]},
       options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.parsed.y+"% negative (n="+mo[c.dataIndex].n+")";}}}},scales:{y:{min:0,title:{display:true,text:"% 1 or 2 star"}}}}});
-    mk("cVol",{type:"bar",data:{labels:mo.map(function(r){return r.month;}),datasets:[{data:mo.map(function(r){return r.n;}),backgroundColor:s1,borderRadius:4}]},
-      options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:"reviews"}}}}});
+    mk("cVol",{lbl:{size:11,minWidth:420},type:"bar",data:{labels:mo.map(function(r){return r.month;}),datasets:[{data:mo.map(function(r){return r.n;}),backgroundColor:s1,borderRadius:4}]},
+      options:{maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:"reviews"}}}}});
   }
   function drawPay(){
     var box=document.getElementById("paybox"); if(!box) return; clear(box);
@@ -415,6 +491,7 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
     var z=(pw.p.n>=50&&pw.m.n>=50)?zTest(pw.p.neg/pw.p.n,pw.p.n,pw.m.neg/pw.m.n,pw.m.n):null, t;
     if(z==null) t="Selected window: too few reviews to test."; else if(Math.abs(z)>=1.96) t="Selected window: distinguishable at 95% (z="+z.toFixed(2)+")."; else t="Selected window: not distinguishable at 95% (z="+z.toFixed(2)+").";
     box.appendChild(el("p","note",t+" Payday window is the 28th to the 3rd, mid-month the 8th to the 22nd. |z| of 1.96 or more is conventionally significant. Periods were chosen after looking at the data, so this is exploratory."));
+    var gl=el("p","note"); add(gl,document.createTextNode("New to z-tests? "),link("#/methodology","See the glossary in Methodology")); box.appendChild(gl);
   }
   function renderF4(){
     var sr=D.since_refresh||{};
@@ -434,7 +511,11 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
           chartCard("cVol","Review volume fell about 90%","English reviews per month","Bar chart of reviews per month",240)); ev.appendChild(g);
         ev.appendChild(el("p","note","Since the 13 Oct update: "+sr.n+" reviews, average "+sr.avg+", "+pct(sr.neg_share)+" negative. That is not clearly better, and "+sr.n+" reviews is too few to say. Volume fell from 875 in November to 85 in September for reasons I don't know."));
 
-        var pc=el("div","card"); pc.style.marginTop="14px"; add(pc,el("h3",null,"Exploratory: a payday pattern appears only from May"),windowControl(drawPay)); var pb=el("div"); pb.id="paybox"; pc.appendChild(pb); ev.appendChild(pc);
+        var pc=el("div","card"); pc.style.marginTop="14px"; var pt=tagLine("hyp","Needs real transaction timing to test"); pt.style.margin="0 0 10px";
+        add(pc,el("h3",null,"Exploratory: a payday pattern appears only from May"),pt,
+          el("p","note","How to read this: each row compares the share of 1 and 2 star reviews posted in the payday window with the share posted mid-month. A review's posting date is not necessarily when the problem happened."),
+          windowControl(drawPay,"the last row of this table"));
+        pc.querySelector(".note").style.margin="0 0 12px"; var pb=el("div"); pb.id="paybox"; pc.appendChild(pb); ev.appendChild(pc);
         var d2=el("details"); d2.appendChild(el("summary",null,"View underlying data: by app version"));
         d2.appendChild(table(["Version","Reviews","Avg rating","Negative share"],D.by_version.map(function(r){return {cls:String(r.version).indexOf("13.")===0?"v13":null,cells:[r.version,r.n,(+r.avg).toFixed(2),pct(r.neg_share)]};}),1));
         d2.appendChild(el("p","note","Chronological order. 429 reviews have no version recorded; they are 51.5% negative.")); ev.appendChild(d2);
@@ -473,30 +554,38 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
       limits:"One labeller and one set of categories. I recorded the main issue or issues a review describes, while the rules fire on any mention, which lowers precision for the mention-type tags. The first 59 labels were made with the tags visible and may be anchored by them; the fresh "+H.n+" were blind. "+17+" of the fresh reviews were unreadable one-word complaints and 7 were not real complaints (for example 'very good' with 1 star); neither can match a tag. A row such as failed transactions rests on only 5 reviews.",
       next:"Have a second person label the same "+H.n+" reviews to measure how much two readers agree, retune the fees and failed-transaction rules, then test on a new fresh sample.",
       after:function(){chartDefaults();
-        mk("cVal",{type:"bar",data:{labels:H.rows.map(function(r){return r.theme;}),datasets:[
+        mk("cVal",{lbl:{size:11,format:function(v){return v+"%";}},type:"bar",data:{labels:H.rows.map(function(r){return r.theme;}),datasets:[
           {label:"Precision",data:H.rows.map(function(r){return +(r.precision*100).toFixed(0);}),backgroundColor:css("--s1"),borderRadius:3},
           {label:"Recall",data:H.rows.map(function(r){return +(r.recall*100).toFixed(0);}),backgroundColor:css("--s2"),borderRadius:3}]},
-          options:{indexAxis:"y",maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var r=H.rows[c.dataIndex];return c.dataset.label+": "+c.parsed.x+"% (my count "+r.mine+", rule count "+r.auto+", agree "+r.agree+")";}}}},scales:{x:{min:0,max:100,title:{display:true,text:"%"}}}}});}
+          options:{indexAxis:"y",maintainAspectRatio:false,layout:{padding:{right:52}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var r=H.rows[c.dataIndex];return c.dataset.label+": "+c.parsed.x+"% (my count "+r.mine+", rule count "+r.auto+", agree "+r.agree+")";}}}},scales:{x:{min:0,max:100,title:{display:true,text:"%"}}}}});}
     });
   }
 
   /* ---------- PROPOSAL ---------- */
-  var flows={
-    today:{cls:"bad",steps:[
-      ["Money moves, then something fails","Reviewers describe a transfer or ATM withdrawal that did not complete while the amount was deducted."],
-      ["No visible status","The reviews I read describe no state, reference number or expected date."],
-      ["Told to contact support","Reviewers describe being sent to a WhatsApp or phone channel and not hearing back, for days or months."],
-      ["Public review as a last resort","Users post a low rating. The public reply sends them back to the same private channel."]],
-      note:"Based on public reviews only; not verified against the live product. A hypothesis to test against real failure data."},
-    next:{cls:"good",steps:[
-      ["Failure detected","The system sees a debit without completion and opens a case with a reference number. The user doesn't have to start anything."],
-      ["Message goes out proactively","SMS or WhatsApp, in the user's language, so it works even if the app won't open.","Your transfer could not be completed. Ref 4821. Your money is being returned. Expected within 3 to 5 working days. No action needed."],
-      ["Status updates","Case opened, reversal started, funds returned. Each states the next step and a date range."],
-      ["Escalate","If the date passes with no reversal, a human agent contacts the user."]],
-      note:"Proposal. States and dates depend on partner data I can't see, so a first release would measure refund timing before promising dates."}
+  var JOURNEY={
+    reported:{title:"Reported experience",sub:"What reviewers describe",cls:"bad",steps:[
+      {t:"Money moves, then something fails",s:"A transfer, recharge or ATM withdrawal doesn't complete, but the amount is deducted.",
+       a:[["What reviewers describe","The transaction fails or stays pending while the money has already left the account."],["Evidence","About 13% of hand-read negative reviews (21 of 159) describe a delayed transfer or money lost in a failed transaction."],["What I can't see","How often this actually happens, or how often it resolves without anyone complaining."]],link:["#/findings/3","Finding 03"]},
+      {t:"No visible status",s:"No state, reference number or expected date.",
+       a:[["What reviewers describe","Not knowing whether the money is lost, on its way back or stuck. One recharge was described as still pending after more than three months."],["Evidence","Paraphrased from public reviews; this is not a measured rate."],["What I can't see","What the app actually shows after a failure. I don't have an account."]]},
+      {t:"Told to contact support",s:"Sent to WhatsApp or phone; several say no reply.",
+       a:[["What reviewers describe","Being asked to message on WhatsApp or send an SMS, then hearing nothing, sometimes for weeks."],["Evidence","Support is the issue in about 18% of hand-read negative reviews, and 68% of public replies use one template that redirects to these channels."],["What I can't see","What happens after the redirect, and how many cases close in one contact."]],link:["#/findings/2","Finding 02"]},
+      {t:"Public review as a last resort",s:"A low rating; the reply points back to the same channel.",
+       a:[["What reviewers describe","Posting a 1-star review after other channels failed."],["Evidence","77% of negative reviews get a public reply, with a median wait of 1.7 days."],["What I can't see","Whether the public reply led to a resolution."]],link:["#/findings/2","Finding 02"]}]},
+    proposed:{title:"Proposed experience",sub:"Illustrative concept",cls:"good",steps:[
+      {t:"Case registered automatically",s:"A reference is created when the failure is confirmed.",
+       a:[["User need","Not having to prove that a failure happened, or start a conversation to get help."],["Requirement","When a debit has no matching completion, open a case with a reference ID within a window agreed with Engineering."],["Measure","Share of failed-after-debit cases that get a case opened automatically."],["Guardrail","Cases opened for transactions that actually succeeded."]]},
+      {t:"Message sent outside the app",s:"SMS or WhatsApp, so it arrives even if the app won't open.",
+       a:[["User need","Knowing what is happening even when the app itself won't load."],["Requirement","Send by SMS or WhatsApp in the user's app language, from a verified sender, with no links that ask for credentials."],["Measure","Delivery rate; repeat support contacts per failed transaction."],["Guardrail","Phishing or fraud reports that reference status messages."]],
+       msg:"Your transfer could not be completed. Ref 4821. Your money is being returned. Expected within 3 to 5 working days. No action needed."},
+      {t:"Verified status updates",s:"Each update matches an event the system has confirmed.",
+       a:[["User need","Understanding what is happening without repeatedly contacting support."],["Requirement","Only send states the processing system has confirmed: case opened, reversal started, funds returned. Never promise a refund before the reversal is confirmed. Give date ranges, not exact dates."],["Measure","Repeat support contacts per eligible case."],["Guardrail","Incorrect or later-reversed status messages must not increase."]]},
+      {t:"Escalation if a date is missed",s:"A missed commitment goes to a person automatically.",
+       a:[["User need","A person to step in when the system's own expected date passes."],["Requirement","If the expected date passes without a reversal, assign the case to a support agent and tell the user."],["Measure","Median time from failure to refund; share of cases escalated."],["Guardrail","Escalation backlog and agent workload."]]}]}
   };
   function renderProposal(){
-    add(view,pageHead("Product proposal","Tell people where their money is","The smallest fix for the highest-stakes problem: proactive status messages on channels the company already uses."));
+    add(view,pageHead("Product proposal","Tell people where their money is","The smallest fix for the highest-stakes problem: proactive, verified status messages on channels the company already uses."));
+    var tl=tagLine("hyp","Needs Edenred's transaction and support data to test"); tl.style.marginTop="12px"; view.appendChild(tl);
     var key=el("div","grid two"); key.style.marginTop="20px";
     var a=el("div","card"); add(a,el("h3",null,"Why this, and not something bigger"),ul([
       "It targets the case where the stakes are highest: money deducted and no answer.",
@@ -505,37 +594,64 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
       "It can be tested on one failure type before anything wider is built."]));
     var b=el("div","card"); add(b,el("h3",null,"How it would be measured"),ul([
       ["Primary:","repeat contacts per failed transaction; median time from failure to refund."],
-      ["Secondary:","first-contact resolution; share of cases reaching a human only by escalation."],
-      ["Guardrails:","message delivery failures; phishing reports referencing status messages."]]),link("#/requirements","Full requirements →"));
+      ["Secondary:","first-contact resolution; share of cases reaching a person only by escalation."],
+      ["Guardrails:","incorrect status messages; message delivery failures; phishing reports referencing status messages."]]),link("#/requirements","Full requirements →"));
     add(key,a,b); view.appendChild(key);
-    var h=el("h2",null,"The journey, before and after"); view.appendChild(h);
-    var seg=el("div","seg"); seg.setAttribute("role","group"); seg.setAttribute("aria-label","Flow view");
-    var flow=el("div","flow"), note=el("p","note");
-    function show(k){clear(flow); var f=flows[k];
-      f.steps.forEach(function(s,i){var row=el("div","step "+f.cls), body=el("div"); add(body,el("strong",null,s[0]),el("div",null,s[1])); if(s[2]) body.appendChild(el("div","msg",s[2])); add(row,el("div","dot",String(i+1)),body); flow.appendChild(row);});
-      note.textContent=f.note; Array.prototype.forEach.call(seg.children,function(x){x.setAttribute("aria-pressed",x.getAttribute("data-k")===k?"true":"false");});}
-    [["today","As described in reviews"],["next","Proposed"]].forEach(function(o){var bt=el("button",null,o[1]); bt.type="button"; bt.setAttribute("data-k",o[0]); bt.onclick=function(){show(o[0]);}; seg.appendChild(bt);});
-    add(view,seg,flow,note); show("today");
+
+    view.appendChild(el("h2",null,"A clearer transaction-support journey"));
+    view.appendChild(el("p","sub","Illustrative concept, pending validation of Edenred's actual workflow. Select any step to see the reasoning behind it."));
+    var j=el("div","journey"), panel=el("div","card jpanel"), btns=[];
+    panel.id="jpanel"; panel.setAttribute("aria-live","polite");
+    ["reported","proposed"].forEach(function(k){
+      var col=JOURNEY[k], c=el("div","card"); add(c,el("h3",null,col.title)); var sb=el("p","note",col.sub); sb.style.margin="-2px 0 12px"; c.appendChild(sb);
+      col.steps.forEach(function(st,i){
+        if(i) c.appendChild(el("div","jarrow","↓"));
+        var bt=el("button","jstep "+col.cls); bt.type="button"; bt.setAttribute("aria-pressed","false"); bt.setAttribute("aria-controls","jpanel");
+        var body=el("span"); add(body,el("strong",null,st.t),el("small",null,st.s)); add(bt,el("span","dot",String(i+1)),body);
+        bt.onclick=function(){select(k,i,bt,true);}; btns.push(bt); c.appendChild(bt);
+      });
+      j.appendChild(c);
+    });
+    function select(k,i,bt,scroll){
+      btns.forEach(function(x){x.setAttribute("aria-pressed",x===bt?"true":"false");});
+      var st=JOURNEY[k].steps[i]; clear(panel);
+      add(panel,el("div","eyebrow",JOURNEY[k].title+" · step "+(i+1)),el("h3",null,st.t));
+      var dl=el("dl"); st.a.forEach(function(p){add(dl,el("dt",null,p[0]),el("dd",null,p[1]));}); panel.appendChild(dl);
+      if(st.msg){var ml=el("p","note","Example message:"); ml.style.margin="14px 0 0"; add(panel,ml,el("div","msg",st.msg));}
+      if(st.link){var pl=el("p","note"); add(pl,document.createTextNode("Evidence: "),link(st.link[0],st.link[1]+" →")); panel.appendChild(pl);}
+      if(scroll&&window.innerWidth<720) panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+    }
+    add(view,j,panel); select("proposed",2,btns[6],false);
+
     var co=el("div","callout blue"); co.style.marginTop="18px";
     add(co,el("strong",null,"A separate problem: app reliability and ads. "),document.createTextNode("The largest single complaint is the app not opening or being slow, concentrated in the v13 era. A status message does not fix that. I flag it because it is probably the biggest driver of the rating drop, and I can't judge its cause from outside. See "),link("#/findings/1","finding 01"),document.createTextNode(" and "),link("#/findings/4","finding 04"),document.createTextNode("."));
     view.appendChild(co);
+
+    var nx=el("div","card nextexp");
+    add(nx,el("div","eyebrow","The next experiment"),el("h3",null,"Test it on one failure type, against current handling"),ul([
+      ["Experiment:","for failed international transfers only, randomly give half of affected users proactive, verified status messages and leave the other half on current handling, for a fixed period."],
+      ["Data needed:","failed-after-debit events with timestamps and reversal times, support contacts linked to those transactions, and message delivery logs."],
+      ["Decision rule:","extend to ATM disputes and card failures if repeat contacts per failed transfer fall by more than a threshold agreed in advance with Support and Operations, with no rise in incorrect status messages or phishing reports."],
+      ["If it doesn't work:","the problem is probably resolution speed rather than communication, and the next place to look is the support process itself."]]));
+    view.appendChild(nx);
   }
 
   /* ---------- REQUIREMENTS ---------- */
   var REQS=[
     ["Problem and goal",[["Problem.","When money is deducted and something fails (a transfer, an ATM withdrawal, a card payment), the user has no visible status, no reference and no self-serve way to track or dispute it. Reviewers describe being sent to a single message channel and then hearing nothing."],["Goal.","Reduce repeat contacts and time-to-resolution for failed-after-debit cases without adding a new channel."]],true],
     ["User stories",["As a cardholder whose transfer or ATM withdrawal failed, I want to see its state (failed, reversal started, refunded) and an expected date, so I know my money is not lost.","As a cardholder, I want a reference number I can quote to support, so I don't have to explain from scratch.","As a cardholder who can't open the app, I want the same updates by SMS or WhatsApp, so I'm not locked out of information about my own money.","As a support agent, I want the failure and its state pre-attached to the conversation, so I can resolve in one contact."]],
-    ["Acceptance criteria",["A transaction that fails after debit creates a case with a reference ID within a window to be set with Engineering.","The user receives a status message at: case opened, reversal initiated, funds returned, each in the user's app language.","Every message states the next step and an expected date range. No message asks the user to start a conversation by sending a greeting.","If the expected date passes with no reversal, the case escalates to a human agent automatically.","Messages never contain full card numbers, balances or ID details, and never contain links that ask for credentials."]],
+    ["Acceptance criteria",["Every status message corresponds to a transaction event confirmed by the processing system, and no message promises a refund before the reversal is confirmed.","A transaction that fails after debit creates a case with a reference ID within a window to be set with Engineering.","The user receives a status message at: case opened, reversal initiated, funds returned, each in the user's app language.","Every message states the next step and an expected date range. No message asks the user to start a conversation by sending a greeting.","If the expected date passes with no reversal, the case escalates to a human agent automatically.","Messages never contain full card numbers, balances or ID details, and never contain links that ask for credentials."]],
     ["Edge cases",["Transfer to a wrong beneficiary is not a technical failure: route to a different path, since a reversal may not be possible.","Partial failures, duplicate debits, and failures that straddle an app update.","User has no data connection, a new phone number, or a shared phone.","Low-literacy users: short sentences, icons, and voice notes where the channel allows."]],
     ["Success metrics",[["Primary:","repeat contacts per failed transaction; median time from failure to refund."],["Secondary:","first-contact resolution rate; share of failure cases that reach a human only by escalation; share of 1 and 2 star reviews mentioning support or deductions."],["Guardrails:","message delivery failures; fraud or phishing reports that reference status messages."]]],
     ["Dependencies and assumptions (unverified)",["Needs transaction-state data from the processing and issuing partners. I don't know its availability or latency.","Needs the messaging channel to allow outbound template messages under the provider's rules.","Day-one data request: failure rates by type, refund times, contact volume per failure, and how many cases currently resolve in one contact."]],
     ["Rollout",["Phase 1: status messages for failed international transfers only, A/B tested against current handling.","Phase 2: extend to ATM disputes and card-payment failures.","Phase 3: add in-app case status, for users who can open the app."]],
     ["Risks",["Status messages become a phishing template: verified sender, no credential links, and an in-app warning.","Over-promising dates: show ranges until reversal timing is measured.","Regulatory expectations on complaint handling and disclosure: check with Compliance before launch."]]
   ];
+  var REQSUB={"Problem and goal":"What we are solving, and why","User stories":"Who needs what, and why","Acceptance criteria":"How we know a requirement is met","Edge cases":"Failures, exceptions and unusual conditions","Success metrics":"Primary outcome and guardrails","Dependencies and assumptions (unverified)":"What needs checking before delivery","Rollout":"Phases, and what comes first","Risks":"What could go wrong, and the controls"};
   function renderRequirements(){
     add(view,pageHead("Requirements","Requirements for failed-transaction status messages","A draft written so a product, design and engineering team could estimate it. Every assumption is labelled as unverified."));
     var wrap=el("div"); wrap.style.marginTop="20px";
-    REQS.forEach(function(r){var d=el("details"); if(r[2]) d.open=true; d.appendChild(el("summary",null,r[0]));
+    REQS.forEach(function(r){var d=el("details"); if(r[2]) d.open=true; var sm=el("summary"); add(sm,document.createTextNode(r[0]),el("small",null,REQSUB[r[0]]||"")); d.appendChild(sm);
       if(r[0]==="Problem and goal"){r[1].forEach(function(p){var pp=el("p"); add(pp,el("strong",null,p[0]),document.createTextNode(" "+p[1])); d.appendChild(pp);});}
       else d.appendChild(ul(r[1])); wrap.appendChild(d);});
     view.appendChild(wrap);
@@ -567,9 +683,18 @@ footer{padding:30px 0 60px;color:var(--muted);font-size:13px;border-top:1px soli
       ["Causation:","nothing here shows that an update caused a rating change. Reviewers on v12 after May are a self-selected group."],
       ["What reviews can't show:","true failure rates, refund times, support volumes, or anyone who never reviews."],
       ["Quotes:","paraphrased from public reviews, not copied."]]);
+    var gc=el("div","card"); gc.style.marginTop="14px"; gc.appendChild(el("h3",null,"Glossary")); var gd=el("dl","gloss");
+    [["Negative share","The share of reviews rated 1 or 2 stars."],
+     ["Hand-read share","The share of the 159 negative reviews I labelled myself that are about a theme."],
+     ["Precision","Of the reviews a keyword rule tagged, the share I agreed with. Low precision means false alarms."],
+     ["Recall","Of the reviews I tagged with a theme, the share the rule also found. Low recall means missed reviews."],
+     ["Two-proportion z-test","A check of whether two shares (for example, payday against mid-month) differ by more than chance alone would explain. A |z| of 1.96 or more is the usual 95% threshold."],
+     ["Version family","Reviews grouped by the app version the reviewer was running: v12 (12.x) or v13 (13.x)."]].forEach(function(g){add(gd,el("dt",null,g[0]),el("dd",null,g[1]));});
+    gc.appendChild(gd); view.appendChild(gc);
+    var cc=el("div","card"); cc.style.marginTop="14px"; add(cc,el("h3",null,"Confidence labels"),confLegend()); view.appendChild(cc);
     card("Future scope",[
       "Apple App Store reviews (the listing shows about 39K ratings) as a cross-check on Android.",
-      "A fresh labelled hold-out sample to re-test the tags.",
+      "A second labeller on the same 100 reviews, to measure how much two readers agree.",
       "Interviews with cardholders, which this project did not do.",
       "Internal data, if available: failure rates by type, refund times, contact volume and resolution by channel."]);
   }
